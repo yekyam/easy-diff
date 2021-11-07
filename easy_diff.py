@@ -1,57 +1,43 @@
-'''
-Simple diff tool for command line
-TODO: Add a simple console support that has two panes, one per file side by side
-TODO: Refactor to only open the files once
-'''
+from functools import partial
 
-import sys
-from os.path import exists
-
-from colorama import Fore, init, Style
-from rich import print as rprint
-from rich import columns
-
-init()
+import tkinter as tk
 
 def make_error_list(file1_lines, file2_lines):
 	errors = []
 	for linenum, (line1, line2) in enumerate(zip(file1_lines, file2_lines)):
 		for posnum, (c1, c2) in enumerate(zip(line1, line2)):
 			if c1 != c2:
-				errors.append(f'{linenum}:{posnum}')
+				errors.append((linenum+1, posnum))
+		if len(line1) < len(line2):
+			errors.append((linenum+1, f'{len(line1)}-'))
 	return errors
 
-def gen_report(file1_lines, file2_lines, errors):
-	file1_chars = [list(x) for x in file1_lines]
-	file2_chars = [list(x) for x in file2_lines]
+def color_error_text(text2, errors):
 	for error in errors:
-		line_num, pos_num = error.split(':')
-		line_num = int(line_num)
-		pos_num = int(pos_num)
-		correct_char = file1_chars[line_num][pos_num]
-		if len(file2_chars[line_num])-1 >= pos_num:
-			wrong_char = file2_chars[line_num][pos_num]
-			file2_chars[line_num][pos_num] = f'{Fore.RED}{wrong_char}{Style.RESET_ALL}'
-		file1_chars[line_num][pos_num] = f'{Fore.GREEN}{correct_char}{Style.RESET_ALL}'
+		match error[1]:
+			case str():
+				text2.tag_add(str(error), f'{error[0]}.{int(error[1][:-1])}', tk.END)
+			case _:
+				text2.tag_add(str(error), f'{error[0]}.{error[1]}', f'{error[0]}.{error[1]+1}')
+		text2.tag_config(str(error), background='white', foreground='red')
 
-	file1_list = [''.join(line) for line in file1_chars]
-	file2_list = [''.join(line) for line in file2_chars]
-	
-	return '\n'.join(file1_list), '\n'.join(file2_list)
+def show_report(text1, text2):
+	lines1 = text1.get('1.0', tk.END).split('\n')
+	lines2 = text2.get('1.0', tk.END).split('\n')
+	color_error_text(text2, make_error_list(lines1, lines2))
 
 def main():
-	file1 = sys.argv[1]
-	file2 = sys.argv[2]
-	if not exists(file1) or not exists(file2):
-		print(f"Couldn't find {file1} or {file2}")
-	else:
-		with open(file1) as f1, open(file2) as f2:
-			file1_lines = f1.read().split('\n')
-			file2_lines = f2.read().split('\n')
-		errors = make_error_list(file1_lines, file2_lines)
-		report1, report2 = gen_report(file1_lines, file2_lines, errors)
-		print(f'{file1}:\n', report1)
-		print(f'{file2}:\n', report2)
+	window = tk.Tk()
+	window.title('Easy Diff')
+	window.columnconfigure(0, weight=1)
+	window.columnconfigure(1, weight=1)
+	text1 = tk.Text()
+	text2 = tk.Text()
+	text1.grid(column=0, row=0, padx=5, pady=5)
+	text2.grid(column=1, row=0, padx=5, pady=5)
+	btn_show_diff = tk.Button(text='Show Changes', width=100, command=partial(show_report, text1, text2))
+	btn_show_diff.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
+	window.mainloop()
 
 if __name__ == '__main__':
 	main()
