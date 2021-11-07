@@ -3,6 +3,11 @@ Easy Diff
 A simple tool to find differences in text
 =========================================
 
+Installation
+------------
+* Download the repo
+* Run `easy_diff.py` with python 3.10+
+
 Usage
 -----
 
